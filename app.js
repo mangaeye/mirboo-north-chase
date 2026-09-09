@@ -39,8 +39,8 @@ loadKmlRoute();
 
 async function loadKmlRoute() {
   try {
-    const response = await fetch("route.kml");
-    if (!response.ok) throw new Error(`Could not load route.kml (${response.status})`);
+    const response = await fetch("route3.kml");
+    if (!response.ok) throw new Error(`Could not load route3.kml (${response.status})`);
     const kml = new DOMParser().parseFromString(await response.text(), "application/xml");
     const coordinateText = [...kml.querySelectorAll("LineString coordinates")]
       .map((element) => element.textContent)
@@ -49,16 +49,16 @@ async function loadKmlRoute() {
       const [longitude, latitude] = point.split(",").map(Number);
       return [latitude, longitude];
     }).filter(([latitude, longitude]) => Number.isFinite(latitude) && Number.isFinite(longitude));
-    if (route.length < 2) throw new Error("route.kml does not contain a usable LineString route");
+    if (route.length < 2) throw new Error("route3.kml does not contain a usable LineString route");
 
     const routeLine = L.polyline(route, { color: "#f76b45", weight: 5, opacity: 0.9 }).addTo(map);
     map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
     loadedRoute = route;
     await addRunnerMarkers(route);
-    mapNote.textContent = "Route loaded from route.kml";
+    mapNote.textContent = "Route loaded from route3.kml";
   } catch (error) {
     console.error(error);
-    showToast("Could not load route.kml. Run the site through a local web server.");
+    showToast("Could not load route3.kml. Run the site through a local web server.");
   }
 }
 
