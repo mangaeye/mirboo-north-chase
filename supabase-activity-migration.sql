@@ -3,7 +3,7 @@ create table if not exists public.activities (
   id bigint generated always as identity primary key,
   user_id uuid not null references public.profiles(id) on delete cascade,
   file_name text not null,
-  file_type text not null check (file_type in ('gpx', 'fit')),
+  file_type text not null check (file_type in ('gpx', 'fit', 'manual')),
   distance_km numeric(10, 2) not null check (distance_km > 0 and distance_km <= 1000),
   started_at timestamptz not null check (started_at >= '2026-09-09 00:00:00+10'),
   uploaded_at timestamptz not null default now()
@@ -11,6 +11,13 @@ create table if not exists public.activities (
 
 alter table public.activities
   add column if not exists started_at timestamptz;
+
+alter table public.activities
+  drop constraint if exists activities_file_type_check;
+
+alter table public.activities
+  add constraint activities_file_type_check
+  check (file_type in ('gpx', 'fit', 'manual'));
 
 alter table public.activities
   drop constraint if exists activities_started_at_check;
@@ -50,8 +57,8 @@ begin
   if p_started_at is null or p_started_at < '2026-09-09 00:00:00+10' then
     raise exception 'Activities before 9 September 2026 are not accepted';
   end if;
-  if p_file_type not in ('gpx', 'fit') then
-    raise exception 'Only GPX and FIT files are supported';
+  if p_file_type not in ('gpx', 'fit', 'manual') then
+    raise exception 'Only GPX, FIT and manual runs are supported';
   end if;
 
   insert into public.activities (user_id, file_name, file_type, distance_km, started_at)

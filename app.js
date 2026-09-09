@@ -304,6 +304,49 @@ document.getElementById("activityFile").addEventListener("change", async (event)
       p_distance_km: Number(activity.distanceKm.toFixed(2)),
       p_started_at: activity.startedAt.toISOString()
     });
+
+    document.getElementById("manualRunForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const message = document.getElementById("manualMessage");
+      const distanceKm = Number(document.getElementById("manualDistance").value);
+      const dateValue = document.getElementById("manualDate").value;
+      const startedAt = dateValue ? new Date(`${dateValue}T00:00:00+10:00`) : null;
+      if (!currentUser || !authClient) {
+        message.textContent = "Sign in with a Supabase account before adding a run.";
+        showToast("Sign in to add a run");
+        return;
+      }
+      if (!Number.isFinite(distanceKm) || distanceKm <= 0 || distanceKm > 1000 || Number((distanceKm * 100).toFixed(5)) % 1 !== 0) {
+        message.textContent = "Enter a distance between 0.01 and 1000 km, with up to 2 decimal places.";
+        return;
+      }
+      if (!startedAt || Number.isNaN(startedAt.getTime()) || startedAt < activityStartCutoff) {
+        message.textContent = "Runs dated before 9 September 2026 are not accepted.";
+        return;
+      }
+      const submitButton = form.querySelector("button");
+      submitButton.disabled = true;
+      message.textContent = "Adding your run...";
+      try {
+        const { error } = await authClient.rpc("add_activity_distance", {
+          p_file_name: "Manual entry",
+          p_file_type: "manual",
+          p_distance_km: Number(distanceKm.toFixed(2)),
+          p_started_at: startedAt.toISOString()
+        });
+        if (error) throw error;
+        message.textContent = `${distanceKm.toFixed(2)} km added`;
+        showToast(`${distanceKm.toFixed(2)} km added to your race total`);
+        form.reset();
+        if (loadedRoute) await addRunnerMarkers(loadedRoute);
+      } catch (error) {
+        message.textContent = error.message || "This run could not be added.";
+        showToast("Manual run could not be added");
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
     if (error) throw error;
     uploadMessage.textContent = `${activity.distanceKm.toFixed(2)} km added from ${file.name}`;
     showToast(`${activity.distanceKm.toFixed(2)} km added to your race total`);
