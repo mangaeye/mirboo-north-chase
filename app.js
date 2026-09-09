@@ -115,6 +115,7 @@ async function loadRealRunners() {
 function renderRunnerData(runners) {
   const totalDistance = runners.reduce((sum, runner) => sum + runner.distanceKm, 0);
   document.getElementById("runnerCount").textContent = runners.length;
+  document.getElementById("runnerLabel").textContent = runners.length === 1 ? "Runner" : "Runners";
   document.getElementById("totalDistance").textContent = Math.round(totalDistance);
   document.getElementById("eventDistance").textContent = `${Math.round(totalDistance)} km complete`;
   document.getElementById("eventPercent").textContent = `${Math.min(100, Math.round(totalDistance / 1336 * 100))}%`;
