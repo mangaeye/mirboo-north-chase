@@ -172,7 +172,40 @@ async function loadRealRunners() {
     color: ["#f76b45", "#6e59d9", "#3a9d78", "#d49a32"][index % 4]
   })).sort((a, b) => b.distanceKm - a.distanceKm);
   renderRunnerData(runners);
+  await loadRecentRuns();
   return runners;
+}
+
+async function loadRecentRuns() {
+  const list = document.getElementById("recentRunsList");
+  if (!authClient) {
+    list.innerHTML = '<p class="empty-state">Sign in to load recent runs.</p>';
+    return;
+  }
+  const { data, error } = await authClient
+    .from("activities")
+    .select("distance_km, started_at, file_type, profiles(display_name)")
+    .order("started_at", { ascending: false })
+    .limit(10);
+  if (error) {
+    list.innerHTML = '<p class="empty-state">Run the activity migration to enable the latest-runs log.</p>';
+    return;
+  }
+  list.innerHTML = data.length ? data.map((activity, index) => {
+    const name = activity.profiles?.display_name || "Runner";
+    const initials = name.slice(0, 2).toUpperCase();
+    const date = new Date(activity.started_at).toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    });
+    const source = activity.file_type === "manual" ? "Manual entry" : activity.file_type.toUpperCase();
+    return `<div class="recent-run">
+      <span class="recent-run-avatar" style="background:${["#f76b45", "#6e59d9", "#3a9d78", "#d49a32"][index % 4]}">${initials}</span>
+      <div class="recent-run-details"><strong>${escapeHtml(name)}</strong><small>${date} · ${source}</small></div>
+      <strong class="recent-run-distance">${Number(activity.distance_km).toFixed(2)} <small>km</small></strong>
+    </div>`;
+  }).join("") : '<p class="empty-state">No runs have been uploaded yet.</p>';
 }
 
 function renderRunnerData(runners) {

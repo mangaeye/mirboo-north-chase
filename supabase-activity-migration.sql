@@ -28,8 +28,9 @@ alter table public.activities
 
 alter table public.activities enable row level security;
 
-create policy "Users can view their own activities"
-  on public.activities for select using (auth.uid() = user_id);
+drop policy if exists "Users can view their own activities" on public.activities;
+create policy "Everyone can view activity log"
+  on public.activities for select using (true);
 
 drop function if exists public.add_activity_distance(text, text, numeric);
 drop function if exists public.add_activity_distance(text, text, numeric, timestamptz);
