@@ -23,6 +23,7 @@ const runnerLayer = L.layerGroup();
 let runnerPositions = [];
 let runnerRouteDistances = [];
 let locationMarker = null;
+let currentRunnerPosition = null;
 const map = L.map("map", { zoomControl: false, scrollWheelZoom: false }).setView([-38.4, 146.16], 13);
 L.control.zoom({ position: "bottomright" }).addTo(map);
 let activeLayer = L.tileLayer(providers.osm.url, { attribution: providers.osm.attribution, maxZoom: 18 }).addTo(map);
@@ -66,6 +67,7 @@ async function addRunnerMarkers(route) {
   runnerLayer.clearLayers();
   runnerPositions = [];
   runnerRouteDistances = [];
+  currentRunnerPosition = null;
 
   runners.forEach((runner) => {
     const distanceAlongRoute = Math.min(runner.distanceKm, totalDistance);
@@ -83,6 +85,7 @@ async function addRunnerMarkers(route) {
     ];
     runnerPositions.push(position);
     runnerRouteDistances.push(distanceAlongRoute);
+    if (currentUser && runner.id === currentUser.id) currentRunnerPosition = position;
     const initials = runner.name.slice(0, 2).toUpperCase();
     const icon = L.divIcon({
       className: "runner-marker",
@@ -123,27 +126,23 @@ document.getElementById("fieldButton").addEventListener("click", () => {
 });
 
 document.getElementById("locateButton").addEventListener("click", () => {
-  if (!navigator.geolocation) {
-    showToast("Location is not available in this browser");
+  if (!currentUser) {
+    showToast("Sign in to see your position on the route");
     return;
   }
-  showToast("Requesting your location...");
-  navigator.geolocation.getCurrentPosition(
-    ({ coords }) => {
-      const position = [coords.latitude, coords.longitude];
-      map.setView(position, 15);
-      if (locationMarker) map.removeLayer(locationMarker);
-      locationMarker = L.circleMarker(position, {
-        radius: 8,
-        color: "#fff",
-        weight: 3,
-        fillColor: "#f76b45",
-        fillOpacity: 1
-      }).addTo(map).bindTooltip("Your current location").openTooltip();
-    },
-    () => showToast("Location permission was not granted"),
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
+  if (!currentRunnerPosition) {
+    showToast("Join the race to see your route position");
+    return;
+  }
+  map.setView(currentRunnerPosition, 15);
+  if (locationMarker) map.removeLayer(locationMarker);
+  locationMarker = L.circleMarker(currentRunnerPosition, {
+    radius: 9,
+    color: "#fff",
+    weight: 3,
+    fillColor: "#f76b45",
+    fillOpacity: 1
+  }).addTo(map).bindTooltip(`${currentUser.user_metadata?.display_name || "Your"} · current race position`).openTooltip();
 });
 
 async function loadRealRunners() {
@@ -357,6 +356,11 @@ document.getElementById("profileButton").addEventListener("click", async () => {
   if (currentUser) {
     if (authClient) await authClient.auth.signOut();
     currentUser = null;
+    currentRunnerPosition = null;
+    if (locationMarker) {
+      map.removeLayer(locationMarker);
+      locationMarker = null;
+    }
     updateUserUi(null);
     showToast("You have been signed out");
     return;
