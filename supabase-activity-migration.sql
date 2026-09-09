@@ -5,18 +5,33 @@ create table if not exists public.activities (
   file_name text not null,
   file_type text not null check (file_type in ('gpx', 'fit')),
   distance_km numeric(10, 2) not null check (distance_km > 0 and distance_km <= 1000),
+  started_at timestamptz not null check (started_at >= '2026-09-09 00:00:00+10'),
   uploaded_at timestamptz not null default now()
 );
+
+alter table public.activities
+  add column if not exists started_at timestamptz;
+
+alter table public.activities
+  drop constraint if exists activities_started_at_check;
+
+alter table public.activities
+  add constraint activities_started_at_check
+  check (started_at is not null and started_at >= '2026-09-09 00:00:00+10');
 
 alter table public.activities enable row level security;
 
 create policy "Users can view their own activities"
   on public.activities for select using (auth.uid() = user_id);
 
+drop function if exists public.add_activity_distance(text, text, numeric);
+drop function if exists public.add_activity_distance(text, text, numeric, timestamptz);
+
 create or replace function public.add_activity_distance(
   p_file_name text,
   p_file_type text,
-  p_distance_km numeric
+  p_distance_km numeric,
+  p_started_at timestamptz
 )
 returns public.activities
 language plpgsql
@@ -32,12 +47,15 @@ begin
   if p_distance_km <= 0 or p_distance_km > 1000 then
     raise exception 'Activity distance must be between 0 and 1000 km';
   end if;
+  if p_started_at is null or p_started_at < '2026-09-09 00:00:00+10' then
+    raise exception 'Activities before 9 September 2026 are not accepted';
+  end if;
   if p_file_type not in ('gpx', 'fit') then
     raise exception 'Only GPX and FIT files are supported';
   end if;
 
-  insert into public.activities (user_id, file_name, file_type, distance_km)
-  values (auth.uid(), left(p_file_name, 255), p_file_type, round(p_distance_km, 2))
+  insert into public.activities (user_id, file_name, file_type, distance_km, started_at)
+  values (auth.uid(), left(p_file_name, 255), p_file_type, round(p_distance_km, 2), p_started_at)
   returning * into new_activity;
 
   insert into public.race_entries (user_id, race_name, distance_km)
@@ -49,5 +67,5 @@ begin
 end;
 $$;
 
-revoke all on function public.add_activity_distance(text, text, numeric) from public;
-grant execute on function public.add_activity_distance(text, text, numeric) to authenticated;
+revoke all on function public.add_activity_distance(text, text, numeric, timestamptz) from public;
+grant execute on function public.add_activity_distance(text, text, numeric, timestamptz) to authenticated;

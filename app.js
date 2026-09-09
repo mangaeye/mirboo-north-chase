@@ -15,6 +15,7 @@ const providers = {
     note: "Esri World Imagery · Tiles © Esri"
   }
 };
+const activityStartCutoff = new Date("2026-09-09T00:00:00+10:00");
 
 let loadedRoute = null;
 let routeDistanceKm = 0;
@@ -288,20 +289,24 @@ document.getElementById("activityFile").addEventListener("change", async (event)
   uploadMessage.textContent = "Reading your activity...";
   try {
     const extension = file.name.toLowerCase().split(".").pop();
-    const distanceKm = extension === "gpx"
+    const activity = extension === "gpx"
       ? await parseGpxDistance(file)
       : extension === "fit"
         ? await parseFitDistance(file)
         : 0;
-    if (!distanceKm || !Number.isFinite(distanceKm)) throw new Error("No distance could be found in that file");
+    if (!activity.distanceKm || !Number.isFinite(activity.distanceKm)) throw new Error("No distance could be found in that file");
+    if (!activity.startedAt || activity.startedAt < activityStartCutoff) {
+      throw new Error("This activity started before 9 September 2026 and cannot be accepted.");
+    }
     const { error } = await authClient.rpc("add_activity_distance", {
       p_file_name: file.name,
       p_file_type: extension,
-      p_distance_km: Number(distanceKm.toFixed(2))
+      p_distance_km: Number(activity.distanceKm.toFixed(2)),
+      p_started_at: activity.startedAt.toISOString()
     });
     if (error) throw error;
-    uploadMessage.textContent = `${distanceKm.toFixed(2)} km added from ${file.name}`;
-    showToast(`${distanceKm.toFixed(2)} km added to your race total`);
+    uploadMessage.textContent = `${activity.distanceKm.toFixed(2)} km added from ${file.name}`;
+    showToast(`${activity.distanceKm.toFixed(2)} km added to your race total`);
     if (loadedRoute) await addRunnerMarkers(loadedRoute);
   } catch (error) {
     uploadMessage.textContent = error.message || "This activity could not be uploaded.";
@@ -312,12 +317,19 @@ document.getElementById("activityFile").addEventListener("change", async (event)
 async function parseGpxDistance(file) {
   const xml = new DOMParser().parseFromString(await file.text(), "application/xml");
   if (xml.querySelector("parsererror")) throw new Error("The GPX file is not valid XML");
-  const points = [...xml.querySelectorAll("trkpt, rtept")].map((point) => [
-    Number(point.getAttribute("lat")),
-    Number(point.getAttribute("lon"))
-  ]).filter(([latitude, longitude]) => Number.isFinite(latitude) && Number.isFinite(longitude));
+  const points = [...xml.querySelectorAll("trkpt, rtept")].map((point) => ({
+    position: [Number(point.getAttribute("lat")), Number(point.getAttribute("lon"))],
+    startedAt: point.querySelector("time")?.textContent
+      ? new Date(point.querySelector("time").textContent)
+      : null
+  })).filter((point) => Number.isFinite(point.position[0]) && Number.isFinite(point.position[1]));
   if (points.length < 2) throw new Error("The GPX file does not contain enough track points");
-  return points.slice(1).reduce((distance, point, index) => distance + map.distance(points[index], point) / 1000, 0);
+  const startedAt = points.map((point) => point.startedAt).find(Boolean);
+  if (!startedAt || Number.isNaN(startedAt.getTime())) throw new Error("The GPX file does not contain a valid activity date");
+  return {
+    distanceKm: points.slice(1).reduce((distance, point, index) => distance + map.distance(points[index].position, point.position) / 1000, 0),
+    startedAt
+  };
 }
 
 async function parseFitDistance(file) {
@@ -329,11 +341,14 @@ async function parseFitDistance(file) {
   }
   const parser = new FitParser({ mode: "list", lengthUnit: "km" });
   const data = await parser.parseAsync(await file.arrayBuffer());
-  const distanceKm = Number(data.sessions?.[0]?.total_distance);
+  const session = data.sessions?.[0];
+  const distanceKm = Number(session?.total_distance);
+  const startedAt = session?.start_time ? new Date(session.start_time) : null;
   if (!Number.isFinite(distanceKm) || distanceKm <= 0) {
     throw new Error("The FIT file does not contain a total distance");
   }
-  return distanceKm;
+  if (!startedAt || Number.isNaN(startedAt.getTime())) throw new Error("The FIT file does not contain a valid activity date");
+  return { distanceKm, startedAt };
 }
 
 function showToast(message) {
