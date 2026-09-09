@@ -203,6 +203,67 @@ document.querySelectorAll("[data-provider]").forEach((button) => button.addEvent
   showToast(`${button.dataset.provider} connection will be available soon`);
 }));
 
+document.getElementById("activityFile").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  const uploadMessage = document.getElementById("uploadMessage");
+  event.target.value = "";
+  if (!file) return;
+  if (!currentUser || !authClient) {
+    uploadMessage.textContent = "Sign in with a Supabase account before uploading a run.";
+    showToast("Sign in to upload a run");
+    return;
+  }
+  uploadMessage.textContent = "Reading your activity...";
+  try {
+    const extension = file.name.toLowerCase().split(".").pop();
+    const distanceKm = extension === "gpx"
+      ? await parseGpxDistance(file)
+      : extension === "fit"
+        ? await parseFitDistance(file)
+        : 0;
+    if (!distanceKm || !Number.isFinite(distanceKm)) throw new Error("No distance could be found in that file");
+    const { error } = await authClient.rpc("add_activity_distance", {
+      p_file_name: file.name,
+      p_file_type: extension,
+      p_distance_km: Number(distanceKm.toFixed(2))
+    });
+    if (error) throw error;
+    uploadMessage.textContent = `${distanceKm.toFixed(2)} km added from ${file.name}`;
+    showToast(`${distanceKm.toFixed(2)} km added to your race total`);
+    if (loadedRoute) await addRunnerMarkers(loadedRoute);
+  } catch (error) {
+    uploadMessage.textContent = error.message || "This activity could not be uploaded.";
+    showToast("Activity upload failed");
+  }
+});
+
+async function parseGpxDistance(file) {
+  const xml = new DOMParser().parseFromString(await file.text(), "application/xml");
+  if (xml.querySelector("parsererror")) throw new Error("The GPX file is not valid XML");
+  const points = [...xml.querySelectorAll("trkpt, rtept")].map((point) => [
+    Number(point.getAttribute("lat")),
+    Number(point.getAttribute("lon"))
+  ]).filter(([latitude, longitude]) => Number.isFinite(latitude) && Number.isFinite(longitude));
+  if (points.length < 2) throw new Error("The GPX file does not contain enough track points");
+  return points.slice(1).reduce((distance, point, index) => distance + map.distance(points[index], point) / 1000, 0);
+}
+
+async function parseFitDistance(file) {
+  let FitParser;
+  try {
+    ({ default: FitParser } = await import("https://esm.sh/fit-file-parser@5.0.2"));
+  } catch {
+    throw new Error("FIT support could not be loaded. Try a GPX export instead.");
+  }
+  const parser = new FitParser({ mode: "list", lengthUnit: "km" });
+  const data = await parser.parseAsync(await file.arrayBuffer());
+  const distanceKm = Number(data.sessions?.[0]?.total_distance);
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0) {
+    throw new Error("The FIT file does not contain a total distance");
+  }
+  return distanceKm;
+}
+
 function showToast(message) {
   const toast = document.getElementById("toast");
   toast.textContent = message;
