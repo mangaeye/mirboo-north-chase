@@ -17,6 +17,7 @@ const providers = {
 };
 
 let loadedRoute = null;
+let routeDistanceKm = 0;
 const runnerLayer = L.layerGroup();
 let runnerPositions = [];
 let runnerRouteDistances = [];
@@ -54,14 +55,15 @@ async function loadKmlRoute() {
 }
 
 async function addRunnerMarkers(route) {
+  const segmentDistances = route.slice(1).map((point, index) => map.distance(route[index], point) / 1000);
+  const totalDistance = segmentDistances.reduce((sum, distance) => sum + distance, 0);
+  routeDistanceKm = totalDistance;
+  const cumulativeDistances = [0];
+  segmentDistances.forEach((distance) => cumulativeDistances.push(cumulativeDistances.at(-1) + distance));
   const runners = await loadRealRunners();
   runnerLayer.clearLayers();
   runnerPositions = [];
   runnerRouteDistances = [];
-  const segmentDistances = route.slice(1).map((point, index) => map.distance(route[index], point) / 1000);
-  const totalDistance = segmentDistances.reduce((sum, distance) => sum + distance, 0);
-  const cumulativeDistances = [0];
-  segmentDistances.forEach((distance) => cumulativeDistances.push(cumulativeDistances.at(-1) + distance));
 
   runners.forEach((runner) => {
     const distanceAlongRoute = Math.min(runner.distanceKm, totalDistance);
@@ -192,6 +194,12 @@ function updatePersonalProgress(runners) {
     : "Sign in to track your progress";
   document.getElementById("personalDistance").textContent = distance;
   document.getElementById("personalProgressBar").style.width = `${Math.min(100, distance / 1336 * 100)}%`;
+  document.getElementById("nextLandmark").innerHTML = `${getNextTown(distance)} <span>›</span>`;
+}
+
+function getNextTown(distanceKm) {
+  // The current KML route starts and finishes in Mirboo North.
+  return distanceKm < routeDistanceKm ? "Mirboo North" : "Route finish";
 }
 
 function escapeHtml(value) {
