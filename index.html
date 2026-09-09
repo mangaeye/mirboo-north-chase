@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Mirboo North Chase - a community race around Australia." />
+    <title>Mirboo North Chase</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#">
+          <span class="brand-mark">⌁</span>
+          <span><strong>Mirboo North</strong><small>CHASE</small></span>
+        </a>
+
+        <nav class="primary-nav" aria-label="Main navigation">
+          <a class="active" href="#overview"><span>◉</span> Race overview</a>
+          <a href="#leaderboard"><span>☷</span> Leaderboard</a>
+          <a href="#how-it-works"><span>◌</span> How it works</a>
+        </nav>
+
+        <div class="sidebar-card">
+          <p class="eyebrow">CURRENT EVENT</p>
+          <h3>Race around<br />Australia</h3>
+          <div class="event-progress"><span></span></div>
+          <div class="event-meta"><span>2,847 km complete</span><strong>18%</strong></div>
+          <p class="muted">The collective distance of every runner, mapped onto one iconic route.</p>
+        </div>
+
+        <div class="sidebar-bottom">
+          <div class="status-dot"><i></i> Sync is active</div>
+          <p>Runs are imported automatically from your connected activity provider.</p>
+          <button class="text-button" id="connectButton">Connect a watch <span>↗</span></button>
+        </div>
+      </aside>
+
+      <main class="main-content" id="overview">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">COMMUNITY CHALLENGE · 2024</p>
+            <h1>Race around Australia <span>✦</span></h1>
+          </div>
+          <div class="top-actions">
+            <button class="icon-button" aria-label="Notifications">♢<b></b></button>
+            <div class="avatar" id="userAvatar">JD</div>
+            <button class="profile-name" id="profileButton">Sign in <span>⌄</span></button>
+          </div>
+        </header>
+
+        <section class="hero-grid">
+          <div class="hero-copy">
+            <div class="live-pill"><i></i> LIVE EVENT</div>
+            <h2>One route.<br /><em>Every stride.</em></h2>
+            <p>Run anywhere in the world. Every kilometre moves you forward on our shared journey around Australia.</p>
+            <button class="primary-button" id="joinButton">Join the race <span>→</span></button>
+          </div>
+          <div class="stats-card">
+            <div class="stat"><span class="stat-icon orange">↗</span><div><strong id="runnerCount">3</strong><small>Runners</small></div></div>
+            <div class="stat"><span class="stat-icon purple">⌁</span><div><strong>470</strong><small>KM completed</small></div></div>
+            <div class="stat"><span class="stat-icon green">◷</span><div><strong>42</strong><small>Days remaining</small></div></div>
+          </div>
+        </section>
+
+        <section class="map-section">
+          <div class="section-heading">
+            <div><p class="eyebrow">THE ROUTE</p><h2>Follow the journey</h2></div>
+            <label class="map-select">Map style
+              <select id="mapProvider" aria-label="Select map style">
+                <option value="osm">OpenStreetMap</option>
+                <option value="carto">Carto Voyager</option>
+                <option value="satellite">Esri satellite</option>
+                <option value="google">Google Maps link</option>
+              </select>
+            </label>
+          </div>
+          <div class="map-wrap">
+            <div id="map" aria-label="Interactive map showing the race route"></div>
+            <div class="map-key"><span class="route-line"></span> Race route <span class="runner-dot"></span> Runners</div>
+            <div class="map-note" id="mapNote">OpenStreetMap · © OpenStreetMap contributors</div>
+          </div>
+        </section>
+
+        <section class="lower-grid">
+          <div class="panel" id="leaderboard">
+            <div class="panel-heading"><div><p class="eyebrow">TOP RUNNERS</p><h2>Leaderboard</h2></div><button class="text-button">View all <span>→</span></button></div>
+            <div class="leader-row"><span class="rank first">01</span><span class="mini-avatar amber">C</span><div class="runner-name"><strong>Chips</strong><small>200 km along route</small></div><strong class="distance">200 <small>km</small></strong></div>
+            <div class="leader-row"><span class="rank">02</span><span class="mini-avatar blue">E</span><div class="runner-name"><strong>Els</strong><small>150 km along route</small></div><strong class="distance">150 <small>km</small></strong></div>
+            <div class="leader-row"><span class="rank">03</span><span class="mini-avatar coral">M</span><div class="runner-name"><strong>Manga</strong><small>120 km along route</small></div><strong class="distance">120 <small>km</small></strong></div>
+          </div>
+          <div class="panel activity-panel">
+            <div class="panel-heading"><div><p class="eyebrow">YOUR PROGRESS</p><h2>Jamie, keep going!</h2></div><span class="flame">♨</span></div>
+            <div class="progress-number"><strong>126.4</strong><span>km</span><small>of 14,200 km total</small></div>
+            <div class="personal-progress"><span></span></div>
+            <div class="activity-footer"><span>Next landmark</span><strong>Wilsons Promontory <span>›</span></strong></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="joinModal" hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="joinTitle">
+        <button class="close-button" data-close="joinModal" aria-label="Close">×</button>
+        <p class="eyebrow">START YOUR JOURNEY</p><h2 id="joinTitle">Join the chase</h2>
+        <p class="modal-intro">Use your name only. You can connect a watch or upload activities later.</p>
+        <form id="joinForm"><label for="runnerName">Your name</label><input id="runnerName" required maxlength="40" placeholder="e.g. Sam Lee" /><button class="primary-button" type="submit">Join race <span>→</span></button></form>
+      </div>
+    </div>
+    <div class="modal-backdrop" id="connectModal" hidden>
+      <div class="modal" role="dialog" aria-modal="true"><button class="close-button" data-close="connectModal" aria-label="Close">×</button><p class="eyebrow">ACTIVITY SYNC</p><h2>Connect your activity app</h2><p class="modal-intro">Choose a provider to automatically send completed runs into the race.</p><div class="provider-list"><button data-provider="Garmin Connect">⌁ <span>Garmin Connect</span><b>→</b></button><button data-provider="Strava">⌁ <span>Strava</span><b>→</b></button><button data-provider="Apple Health">⌁ <span>Apple Health</span><b>→</b></button></div><p class="form-hint">You can also export a GPX or FIT file from your watch and upload it in a future version.</p></div>
+    </div>
+    <div class="modal-backdrop" id="authModal" hidden>
+      <div class="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <button class="close-button" data-close="authModal" aria-label="Close">×</button>
+        <p class="eyebrow">YOUR RACE ACCOUNT</p>
+        <h2 id="authTitle">Join the chase</h2>
+        <p class="modal-intro" id="authIntro">Create an account to save your progress and join the race from any device.</p>
+        <div class="auth-tabs"><button class="auth-tab active" data-auth-mode="signup">Create account</button><button class="auth-tab" data-auth-mode="signin">Sign in</button></div>
+        <form id="authForm">
+          <label for="authName" id="authNameLabel">Your name</label>
+          <input id="authName" maxlength="40" placeholder="e.g. Sam Lee" autocomplete="name" required />
+          <label for="authEmail">Email address</label>
+          <input id="authEmail" type="email" placeholder="you@example.com" autocomplete="email" required />
+          <label for="authPassword">Password</label>
+          <input id="authPassword" type="password" minlength="8" placeholder="At least 8 characters" autocomplete="new-password" required />
+          <button class="primary-button" type="submit" id="authSubmit">Create account <span>→</span></button>
+          <p class="form-hint" id="authMessage">Your email is private and your name is shown on the leaderboard.</p>
+        </form>
+      </div>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="app.js"></script>
+  </body>
+</html>
