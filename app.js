@@ -18,7 +18,12 @@ const providers = {
 
 let loadedRoute = null;
 let routeDistanceKm = 0;
-const routeLandmarks = [];
+// Add each town/city in route order with its distance from the route start.
+// These distances are derived from the current KML route and can be expanded
+// when the course includes more towns.
+const routeLandmarks = [
+  { name: "Morwell", distanceKm: 16.84 }
+];
 const runnerLayer = L.layerGroup();
 let runnerPositions = [];
 let runnerRouteDistances = [];
@@ -60,7 +65,9 @@ async function addRunnerMarkers(route) {
   const segmentDistances = route.slice(1).map((point, index) => map.distance(route[index], point) / 1000);
   const totalDistance = segmentDistances.reduce((sum, distance) => sum + distance, 0);
   routeDistanceKm = totalDistance;
-  routeLandmarks.splice(0, routeLandmarks.length, { name: "Morwell", distanceKm: totalDistance });
+  routeLandmarks.forEach((landmark) => {
+    landmark.distanceKm = Math.min(landmark.distanceKm, totalDistance);
+  });
   const cumulativeDistances = [0];
   segmentDistances.forEach((distance) => cumulativeDistances.push(cumulativeDistances.at(-1) + distance));
   const runners = await loadRealRunners();
@@ -201,7 +208,7 @@ function updatePersonalProgress(runners) {
 function getNextTown(distanceKm, isSignedIn) {
   if (!isSignedIn) return "Sign in to see your next town";
   const nextLandmark = routeLandmarks
-    .filter((landmark) => landmark.distanceKm > distanceKm)
+    .filter((landmark) => landmark.distanceKm >= distanceKm - 0.25)
     .sort((a, b) => a.distanceKm - b.distanceKm)[0];
   return nextLandmark?.name || "Route finish";
 }
