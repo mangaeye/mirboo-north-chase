@@ -60,7 +60,7 @@ async function addRunnerMarkers(route) {
   const segmentDistances = route.slice(1).map((point, index) => map.distance(route[index], point) / 1000);
   const totalDistance = segmentDistances.reduce((sum, distance) => sum + distance, 0);
   routeDistanceKm = totalDistance;
-  routeLandmarks.splice(0, routeLandmarks.length, { name: "Mirboo North", distanceKm: totalDistance });
+  routeLandmarks.splice(0, routeLandmarks.length, { name: "Morwell", distanceKm: totalDistance });
   const cumulativeDistances = [0];
   segmentDistances.forEach((distance) => cumulativeDistances.push(cumulativeDistances.at(-1) + distance));
   const runners = await loadRealRunners();
