@@ -18,6 +18,9 @@ const providers = {
 
 let loadedRoute = null;
 const runnerLayer = L.layerGroup();
+let runnerPositions = [];
+let runnerRouteDistances = [];
+let locationMarker = null;
 const map = L.map("map", { zoomControl: false, scrollWheelZoom: false }).setView([-38.4, 146.16], 13);
 L.control.zoom({ position: "bottomright" }).addTo(map);
 let activeLayer = L.tileLayer(providers.osm.url, { attribution: providers.osm.attribution, maxZoom: 18 }).addTo(map);
@@ -53,6 +56,8 @@ async function loadKmlRoute() {
 async function addRunnerMarkers(route) {
   const runners = await loadRealRunners();
   runnerLayer.clearLayers();
+  runnerPositions = [];
+  runnerRouteDistances = [];
   const segmentDistances = route.slice(1).map((point, index) => map.distance(route[index], point) / 1000);
   const totalDistance = segmentDistances.reduce((sum, distance) => sum + distance, 0);
   const cumulativeDistances = [0];
@@ -72,6 +77,8 @@ async function addRunnerMarkers(route) {
       segmentStart[0] + (segmentEnd[0] - segmentStart[0]) * segmentProgress,
       segmentStart[1] + (segmentEnd[1] - segmentStart[1]) * segmentProgress
     ];
+    runnerPositions.push(position);
+    runnerRouteDistances.push(distanceAlongRoute);
     const initials = runner.name.slice(0, 2).toUpperCase();
     const icon = L.divIcon({
       className: "runner-marker",
@@ -89,6 +96,51 @@ async function addRunnerMarkers(route) {
       });
   });
 }
+
+document.getElementById("routeButton").addEventListener("click", () => {
+  if (!loadedRoute) {
+    showToast("The route is still loading");
+    return;
+  }
+  map.fitBounds(L.latLngBounds(loadedRoute), { padding: [20, 20] });
+});
+
+document.getElementById("fieldButton").addEventListener("click", () => {
+  if (runnerPositions.length === 0) {
+    showToast("No runners have joined yet");
+    return;
+  }
+  const sorted = runnerPositions
+    .map((position, index) => ({ position, distance: runnerRouteDistances[index] }))
+    .sort((a, b) => a.distance - b.distance);
+  const start = Math.floor((sorted.length - 1) * 0.1);
+  const end = Math.ceil((sorted.length - 1) * 0.9);
+  map.fitBounds(L.latLngBounds(sorted.slice(start, end + 1).map((runner) => runner.position)), { padding: [55, 55] });
+});
+
+document.getElementById("locateButton").addEventListener("click", () => {
+  if (!navigator.geolocation) {
+    showToast("Location is not available in this browser");
+    return;
+  }
+  showToast("Requesting your location...");
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      const position = [coords.latitude, coords.longitude];
+      map.setView(position, 15);
+      if (locationMarker) map.removeLayer(locationMarker);
+      locationMarker = L.circleMarker(position, {
+        radius: 8,
+        color: "#fff",
+        weight: 3,
+        fillColor: "#f76b45",
+        fillOpacity: 1
+      }).addTo(map).bindTooltip("Your current location").openTooltip();
+    },
+    () => showToast("Location permission was not granted"),
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+});
 
 async function loadRealRunners() {
   if (!authClient) {
