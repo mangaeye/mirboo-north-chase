@@ -18,6 +18,7 @@ const providers = {
 
 let loadedRoute = null;
 let routeDistanceKm = 0;
+const routeLandmarks = [];
 const runnerLayer = L.layerGroup();
 let runnerPositions = [];
 let runnerRouteDistances = [];
@@ -58,6 +59,7 @@ async function addRunnerMarkers(route) {
   const segmentDistances = route.slice(1).map((point, index) => map.distance(route[index], point) / 1000);
   const totalDistance = segmentDistances.reduce((sum, distance) => sum + distance, 0);
   routeDistanceKm = totalDistance;
+  routeLandmarks.splice(0, routeLandmarks.length, { name: "Mirboo North", distanceKm: totalDistance });
   const cumulativeDistances = [0];
   segmentDistances.forEach((distance) => cumulativeDistances.push(cumulativeDistances.at(-1) + distance));
   const runners = await loadRealRunners();
@@ -194,12 +196,15 @@ function updatePersonalProgress(runners) {
     : "Sign in to track your progress";
   document.getElementById("personalDistance").textContent = distance;
   document.getElementById("personalProgressBar").style.width = `${Math.min(100, distance / 1336 * 100)}%`;
-  document.getElementById("nextLandmark").innerHTML = `${getNextTown(distance)} <span>›</span>`;
+  document.getElementById("nextLandmark").innerHTML = `${getNextTown(distance, Boolean(currentName))} <span>›</span>`;
 }
 
-function getNextTown(distanceKm) {
-  // The current KML route starts and finishes in Mirboo North.
-  return distanceKm < routeDistanceKm ? "Mirboo North" : "Route finish";
+function getNextTown(distanceKm, isSignedIn) {
+  if (!isSignedIn) return "Sign in to see your next town";
+  const nextLandmark = routeLandmarks
+    .filter((landmark) => landmark.distanceKm > distanceKm)
+    .sort((a, b) => a.distanceKm - b.distanceKm)[0];
+  return nextLandmark?.name || "Route finish";
 }
 
 function escapeHtml(value) {
@@ -392,6 +397,7 @@ authForm.addEventListener("submit", async (event) => {
       } else {
         currentUser = result.data.user;
         updateUserUi(currentUser);
+        if (loadedRoute) await addRunnerMarkers(loadedRoute);
         authModal.hidden = true;
         showToast(`Welcome${name ? `, ${name}` : ""}!`);
       }
@@ -414,6 +420,7 @@ if (authClient) {
   authClient.auth.getSession().then(({ data }) => {
     currentUser = data.session?.user || null;
     updateUserUi(currentUser);
+    if (currentUser && loadedRoute) addRunnerMarkers(loadedRoute);
   });
 }
 
