@@ -29,7 +29,7 @@
           <p class="eyebrow">CURRENT EVENT</p>
           <h3>Race around<br />Australia</h3>
           <div class="event-progress"><span></span></div>
-          <div class="event-meta"><span>2,847 km complete</span><strong>18%</strong></div>
+          <div class="event-meta"><span id="eventDistance">0 km complete</span><strong id="eventPercent">0%</strong></div>
           <p class="muted">The collective distance of every runner, mapped onto one iconic route.</p>
         </div>
 
@@ -61,8 +61,8 @@
             <button class="primary-button" id="joinButton">Join the race <span>→</span></button>
           </div>
           <div class="stats-card">
-            <div class="stat"><span class="stat-icon orange">↗</span><div><strong id="runnerCount">3</strong><small>Runners</small></div></div>
-            <div class="stat"><span class="stat-icon purple">⌁</span><div><strong>470</strong><small>KM completed</small></div></div>
+            <div class="stat"><span class="stat-icon orange">↗</span><div><strong id="runnerCount">0</strong><small>Runners</small></div></div>
+            <div class="stat"><span class="stat-icon purple">⌁</span><div><strong id="totalDistance">0</strong><small>KM completed</small></div></div>
             <div class="stat"><span class="stat-icon green">◷</span><div><strong>42</strong><small>Days remaining</small></div></div>
           </div>
         </section>
@@ -89,14 +89,12 @@
         <section class="lower-grid">
           <div class="panel" id="leaderboard">
             <div class="panel-heading"><div><p class="eyebrow">TOP RUNNERS</p><h2>Leaderboard</h2></div><button class="text-button">View all <span>→</span></button></div>
-            <div class="leader-row"><span class="rank first">01</span><span class="mini-avatar amber">C</span><div class="runner-name"><strong>Chips</strong><small>200 km along route</small></div><strong class="distance">200 <small>km</small></strong></div>
-            <div class="leader-row"><span class="rank">02</span><span class="mini-avatar blue">E</span><div class="runner-name"><strong>Els</strong><small>150 km along route</small></div><strong class="distance">150 <small>km</small></strong></div>
-            <div class="leader-row"><span class="rank">03</span><span class="mini-avatar coral">M</span><div class="runner-name"><strong>Manga</strong><small>120 km along route</small></div><strong class="distance">120 <small>km</small></strong></div>
+            <div id="leaderboardRows"><p class="empty-state">No runners have joined yet.</p></div>
           </div>
           <div class="panel activity-panel">
-            <div class="panel-heading"><div><p class="eyebrow">YOUR PROGRESS</p><h2>Jamie, keep going!</h2></div><span class="flame">♨</span></div>
-            <div class="progress-number"><strong>126.4</strong><span>km</span><small>of 14,200 km total</small></div>
-            <div class="personal-progress"><span></span></div>
+            <div class="panel-heading"><div><p class="eyebrow">YOUR PROGRESS</p><h2 id="progressTitle">Sign in to track your progress</h2></div><span class="flame">♨</span></div>
+            <div class="progress-number"><strong id="personalDistance">0</strong><span>km</span><small>of 1,336 km total</small></div>
+            <div class="personal-progress"><span id="personalProgressBar"></span></div>
             <div class="activity-footer"><span>Next landmark</span><strong>Wilsons Promontory <span>›</span></strong></div>
           </div>
         </section>

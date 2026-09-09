@@ -16,15 +16,12 @@ const providers = {
   }
 };
 
-const runners = [
-  { name: "Manga", distanceKm: 120, color: "#f76b45" },
-  { name: "Chips", distanceKm: 200, color: "#6e59d9" },
-  { name: "Els", distanceKm: 150, color: "#3a9d78" }
-];
-
+let loadedRoute = null;
+const runnerLayer = L.layerGroup();
 const map = L.map("map", { zoomControl: false, scrollWheelZoom: false }).setView([-38.4, 146.16], 13);
 L.control.zoom({ position: "bottomright" }).addTo(map);
 let activeLayer = L.tileLayer(providers.osm.url, { attribution: providers.osm.attribution, maxZoom: 18 }).addTo(map);
+runnerLayer.addTo(map);
 
 loadKmlRoute();
 
@@ -44,7 +41,8 @@ async function loadKmlRoute() {
 
     const routeLine = L.polyline(route, { color: "#f76b45", weight: 5, opacity: 0.9 }).addTo(map);
     map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
-    addRunnerMarkers(route);
+    loadedRoute = route;
+    await addRunnerMarkers(route);
     mapNote.textContent = "Route loaded from route.kml";
   } catch (error) {
     console.error(error);
@@ -52,7 +50,9 @@ async function loadKmlRoute() {
   }
 }
 
-function addRunnerMarkers(route) {
+async function addRunnerMarkers(route) {
+  const runners = await loadRealRunners();
+  runnerLayer.clearLayers();
   const segmentDistances = route.slice(1).map((point, index) => map.distance(route[index], point) / 1000);
   const totalDistance = segmentDistances.reduce((sum, distance) => sum + distance, 0);
   const cumulativeDistances = [0];
@@ -80,7 +80,7 @@ function addRunnerMarkers(route) {
       iconAnchor: [17, 17]
     });
     L.marker(position, { icon })
-      .addTo(map)
+      .addTo(runnerLayer)
       .bindTooltip(`${runner.name} · ${runner.distanceKm} km`, {
         direction: "top",
         offset: [0, -14],
@@ -88,6 +88,61 @@ function addRunnerMarkers(route) {
         className: "runner-tooltip"
       });
   });
+}
+
+async function loadRealRunners() {
+  if (!authClient) {
+    renderRunnerData([]);
+    return [];
+  }
+  const [profilesResult, entriesResult] = await Promise.all([
+    authClient.from("profiles").select("id, display_name"),
+    authClient.from("race_entries").select("user_id, distance_km")
+  ]);
+  if (profilesResult.error) throw profilesResult.error;
+  if (entriesResult.error) throw entriesResult.error;
+  const distances = new Map(entriesResult.data.map((entry) => [entry.user_id, Number(entry.distance_km) || 0]));
+  const runners = profilesResult.data.map((profile, index) => ({
+    id: profile.id,
+    name: profile.display_name,
+    distanceKm: distances.get(profile.id) || 0,
+    color: ["#f76b45", "#6e59d9", "#3a9d78", "#d49a32"][index % 4]
+  })).sort((a, b) => b.distanceKm - a.distanceKm);
+  renderRunnerData(runners);
+  return runners;
+}
+
+function renderRunnerData(runners) {
+  const totalDistance = runners.reduce((sum, runner) => sum + runner.distanceKm, 0);
+  document.getElementById("runnerCount").textContent = runners.length;
+  document.getElementById("totalDistance").textContent = Math.round(totalDistance);
+  document.getElementById("eventDistance").textContent = `${Math.round(totalDistance)} km complete`;
+  document.getElementById("eventPercent").textContent = `${Math.min(100, Math.round(totalDistance / 1336 * 100))}%`;
+  document.querySelector(".event-progress span").style.width = `${Math.min(100, totalDistance / 1336 * 100)}%`;
+  const rows = document.getElementById("leaderboardRows");
+  rows.innerHTML = runners.length ? runners.slice(0, 5).map((runner, index) => `
+    <div class="leader-row">
+      <span class="rank ${index === 0 ? "first" : ""}">${String(index + 1).padStart(2, "0")}</span>
+      <span class="mini-avatar" style="background:${runner.color}">${runner.name.slice(0, 2).toUpperCase()}</span>
+      <div class="runner-name"><strong>${escapeHtml(runner.name)}</strong><small>${runner.distanceKm} km along route</small></div>
+      <strong class="distance">${runner.distanceKm} <small>km</small></strong>
+    </div>`).join("") : '<p class="empty-state">No runners have joined yet.</p>';
+  updatePersonalProgress(runners);
+}
+
+function updatePersonalProgress(runners) {
+  const currentName = currentUser?.user_metadata?.display_name;
+  const currentRunner = runners.find((runner) => runner.name === currentName);
+  const distance = currentRunner?.distanceKm || 0;
+  document.getElementById("progressTitle").textContent = currentName
+    ? `${currentName}, keep going!`
+    : "Sign in to track your progress";
+  document.getElementById("personalDistance").textContent = distance;
+  document.getElementById("personalProgressBar").style.width = `${Math.min(100, distance / 1336 * 100)}%`;
+}
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]);
 }
 
 const mapSelect = document.getElementById("mapProvider");
@@ -108,7 +163,27 @@ mapSelect.addEventListener("change", (event) => {
 
 const joinModal = document.getElementById("joinModal");
 const connectModal = document.getElementById("connectModal");
-document.getElementById("joinButton").addEventListener("click", () => { joinModal.hidden = false; document.getElementById("runnerName").focus(); });
+document.getElementById("joinButton").addEventListener("click", async () => {
+  if (!currentUser) {
+    authModal.hidden = false;
+    authName.focus();
+    return;
+  }
+  if (!authClient) {
+    showToast("Connect Supabase before joining the race");
+    return;
+  }
+  const { error } = await authClient.from("race_entries").upsert(
+    { user_id: currentUser.id, race_name: "Race around Australia", distance_km: 0 },
+    { onConflict: "user_id,race_name" }
+  );
+  if (error) {
+    showToast(error.message);
+    return;
+  }
+  showToast("You joined the race");
+  if (loadedRoute) await addRunnerMarkers(loadedRoute);
+});
 document.getElementById("connectButton").addEventListener("click", () => { connectModal.hidden = false; });
 document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => { document.getElementById(button.dataset.close).hidden = true; }));
 document.querySelectorAll(".modal-backdrop").forEach((backdrop) => backdrop.addEventListener("click", (event) => { if (event.target === backdrop) backdrop.hidden = true; }));
