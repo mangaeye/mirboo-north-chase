@@ -531,6 +531,6 @@ function updateUserUi(user) {
   const name = user?.user_metadata?.display_name || user?.email?.split("@")[0] || null;
   const profileButton = document.getElementById("profileButton");
   profileButton.firstChild.textContent = `${name || "Sign in"} `;
-  document.getElementById("userAvatar").textContent = name ? name.slice(0, 2).toUpperCase() : "JD";
+  document.getElementById("userAvatar").textContent = name ? name.slice(0, 2).toUpperCase() : "";
   if (name) localStorage.setItem("mirbooRunnerName", name);
 }
