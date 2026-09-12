@@ -19,6 +19,9 @@ const activityStartCutoff = new Date("2026-09-09T00:00:00+10:00");
 
 let loadedRoute = null;
 let routeDistanceKm = 0;
+let challenges = [];
+let selectedChallenge = null;
+let enrolledChallengeIds = new Set();
 // Add each town/city in route order with its distance from the route start.
 // These distances are derived from the current KML route and can be expanded
 // when the course includes more towns.
@@ -35,12 +38,10 @@ L.control.zoom({ position: "bottomright" }).addTo(map);
 let activeLayer = L.tileLayer(providers.osm.url, { attribution: providers.osm.attribution, maxZoom: 18 }).addTo(map);
 runnerLayer.addTo(map);
 
-loadKmlRoute();
-
-async function loadKmlRoute() {
+async function loadChallengeRoute(challenge) {
   try {
-    const response = await fetch("route3.kml");
-    if (!response.ok) throw new Error(`Could not load route3.kml (${response.status})`);
+    const response = await fetch(challenge.route_file);
+    if (!response.ok) throw new Error(`Could not load ${challenge.route_file} (${response.status})`);
     const kml = new DOMParser().parseFromString(await response.text(), "application/xml");
     const coordinateText = [...kml.querySelectorAll("LineString coordinates")]
       .map((element) => element.textContent)
@@ -49,16 +50,21 @@ async function loadKmlRoute() {
       const [longitude, latitude] = point.split(",").map(Number);
       return [latitude, longitude];
     }).filter(([latitude, longitude]) => Number.isFinite(latitude) && Number.isFinite(longitude));
-    if (route.length < 2) throw new Error("route3.kml does not contain a usable LineString route");
+    if (route.length < 2) throw new Error(`${challenge.route_file} does not contain a usable LineString route`);
 
+    runnerLayer.clearLayers();
+    map.eachLayer((layer) => {
+      if (layer instanceof L.Polyline && layer !== activeLayer && layer !== runnerLayer) map.removeLayer(layer);
+    });
     const routeLine = L.polyline(route, { color: "#f76b45", weight: 5, opacity: 0.9 }).addTo(map);
     map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
     loadedRoute = route;
     await addRunnerMarkers(route);
-    mapNote.textContent = "Route loaded from route3.kml";
+    renderChallengeDetails();
+    mapNote.textContent = `Route loaded from ${challenge.route_file}`;
   } catch (error) {
     console.error(error);
-    showToast("Could not load route3.kml. Run the site through a local web server.");
+    showToast(`Could not load ${challenge.route_file}. Run the site through a local web server.`);
   }
 }
 
@@ -155,18 +161,18 @@ document.getElementById("locateButton").addEventListener("click", () => {
 });
 
 async function loadRealRunners() {
-  if (!authClient) {
+  if (!authClient || !selectedChallenge) {
     renderRunnerData([]);
     return [];
   }
   const [profilesResult, entriesResult] = await Promise.all([
     authClient.from("profiles").select("id, display_name"),
-    authClient.from("race_entries").select("user_id, distance_km")
+    authClient.from("challenge_entries").select("user_id, distance_km").eq("challenge_id", selectedChallenge.id)
   ]);
   if (profilesResult.error) throw profilesResult.error;
   if (entriesResult.error) throw entriesResult.error;
   const distances = new Map(entriesResult.data.map((entry) => [entry.user_id, Number(entry.distance_km) || 0]));
-  const runners = profilesResult.data.map((profile, index) => ({
+  const runners = profilesResult.data.filter((profile) => distances.has(profile.id)).map((profile, index) => ({
     id: profile.id,
     name: profile.display_name,
     distanceKm: distances.get(profile.id) || 0,
@@ -186,6 +192,7 @@ async function loadRecentRuns() {
   const { data, error } = await authClient
     .from("activities")
     .select("distance_km, started_at, file_type, profiles(display_name)")
+    .eq("challenge_id", selectedChallenge.id)
     .order("started_at", { ascending: false })
     .limit(10);
   if (error) {
@@ -215,8 +222,8 @@ function renderRunnerData(runners) {
   document.getElementById("runnerLabel").textContent = runners.length === 1 ? "Runner" : "Runners";
   document.getElementById("totalDistance").textContent = Math.round(totalDistance);
   document.getElementById("eventDistance").textContent = `${Math.round(totalDistance)} km complete`;
-  document.getElementById("eventPercent").textContent = `${Math.min(100, Math.round(totalDistance / 1336 * 100))}%`;
-  document.querySelector(".event-progress span").style.width = `${Math.min(100, totalDistance / 1336 * 100)}%`;
+  document.getElementById("eventPercent").textContent = `${Math.min(100, Math.round(totalDistance / Math.max(routeDistanceKm, 1) * 100))}%`;
+  document.querySelector(".event-progress span").style.width = `${Math.min(100, totalDistance / Math.max(routeDistanceKm, 1) * 100)}%`;
   const rows = document.getElementById("leaderboardRows");
   rows.innerHTML = runners.length ? runners.slice(0, 5).map((runner, index) => `
     <div class="leader-row">
@@ -236,7 +243,7 @@ function updatePersonalProgress(runners) {
     ? `${currentName}, keep going!`
     : "Sign in to track your progress";
   document.getElementById("personalDistance").textContent = distance;
-  document.getElementById("personalProgressBar").style.width = `${Math.min(100, distance / 1336 * 100)}%`;
+  document.getElementById("personalProgressBar").style.width = `${Math.min(100, distance / Math.max(routeDistanceKm, 1) * 100)}%`;
   document.getElementById("nextLandmark").innerHTML = `${getNextTown(distance, Boolean(currentName))} <span>›</span>`;
 }
 
@@ -256,6 +263,94 @@ function getNextTown(distanceKm, isSignedIn) {
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]);
 }
+
+let selectedChallengeEnrolled = false;
+
+function renderChallengeDetails() {
+  if (!selectedChallenge) return;
+  document.getElementById("sidebarChallengeName").innerHTML = escapeHtml(selectedChallenge.name).replace(/\s+/g, "<br />");
+  document.getElementById("heroChallengeName").innerHTML = `${escapeHtml(selectedChallenge.name)} <span>✦</span>`;
+  document.getElementById("challengeName").textContent = selectedChallenge.name;
+  document.getElementById("challengeMeta").textContent =
+    `${new Date(`${selectedChallenge.start_date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })} · ${selectedChallenge.start_location} to ${selectedChallenge.finish_location}`;
+  document.getElementById("challengeJoinButton").textContent = selectedChallengeEnrolled ? "Enrolled" : "Join challenge";
+  document.getElementById("challengeJoinButton").disabled = selectedChallengeEnrolled;
+  document.querySelector(".activity-panel .progress-number small").textContent =
+    `of ${Math.round(routeDistanceKm || 1336).toLocaleString()} km total`;
+  document.getElementById("activityEntryGrid").hidden = !(currentUser && selectedChallengeEnrolled);
+}
+
+async function loadChallenges() {
+  const fallbackChallenge = {
+    id: "local-default",
+    name: "Race around Australia",
+    route_file: "route3.kml",
+    start_date: "2026-09-09",
+    start_location: "Mirboo North",
+    finish_location: "South Point"
+  };
+  if (!authClient) {
+    challenges = [fallbackChallenge];
+    selectedChallenge = fallbackChallenge;
+    renderChallengeSelector();
+    renderChallengeDetails();
+    await loadChallengeRoute(selectedChallenge);
+    return;
+  }
+  const { data, error } = await authClient
+    .from("challenges")
+    .select("id, name, route_file, start_date, start_location, finish_location")
+    .order("start_date", { ascending: true });
+  if (error) throw error;
+  challenges = data || [];
+  if (!challenges.length) {
+    selectedChallenge = null;
+    document.getElementById("challengeName").textContent = "No challenges available";
+    document.getElementById("challengeMeta").textContent = "Run the challenges migration in Supabase.";
+    return;
+  }
+  selectedChallenge = challenges.find((challenge) => challenge.id === selectedChallenge?.id) || challenges[0];
+  await refreshChallengeEnrollment();
+  renderChallengeSelector();
+  renderChallengeDetails();
+  await loadChallengeRoute(selectedChallenge);
+}
+
+async function refreshChallengeEnrollment() {
+  if (!currentUser || !selectedChallenge || !authClient || selectedChallenge.id === "local-default") {
+    enrolledChallengeIds = new Set();
+    selectedChallengeEnrolled = false;
+    return;
+  }
+  const { data, error } = await authClient
+    .from("challenge_entries")
+    .select("id, challenge_id")
+    .eq("user_id", currentUser.id)
+    .limit(1000);
+  if (error) throw error;
+  enrolledChallengeIds = new Set((data || []).map((entry) => entry.challenge_id));
+  selectedChallengeEnrolled = enrolledChallengeIds.has(selectedChallenge.id);
+}
+
+function renderChallengeSelector() {
+  const select = document.getElementById("challengeSelect");
+  select.innerHTML = challenges.map((challenge) =>
+    `<option value="${escapeHtml(challenge.id)}">${escapeHtml(challenge.name)}${enrolledChallengeIds.has(challenge.id) ? " (Enrolled)" : ""}</option>`
+  ).join("");
+  if (selectedChallenge) select.value = selectedChallenge.id;
+}
+
+document.getElementById("challengeSelect").addEventListener("change", async (event) => {
+  selectedChallenge = challenges.find((challenge) => challenge.id === event.target.value);
+  if (!selectedChallenge) return;
+  await refreshChallengeEnrollment();
+  renderChallengeDetails();
+  await loadChallengeRoute(selectedChallenge);
+});
+
+document.getElementById("challengeJoinButton").addEventListener("click", () => {
+  document.getElementById("joinButton").click();
+});
 
 const mapSelect = document.getElementById("mapProvider");
 const mapNote = document.getElementById("mapNote");
@@ -285,14 +380,22 @@ document.getElementById("joinButton").addEventListener("click", async () => {
     showToast("Connect Supabase before joining the race");
     return;
   }
-  const { error } = await authClient.from("race_entries").upsert(
-    { user_id: currentUser.id, race_name: "Race around Australia", distance_km: 0 },
-    { onConflict: "user_id,race_name" }
+  if (!selectedChallenge || selectedChallenge.id === "local-default") {
+    showToast("Run the challenges migration before joining");
+    return;
+  }
+  const { error } = await authClient.from("challenge_entries").upsert(
+    { user_id: currentUser.id, challenge_id: selectedChallenge.id, distance_km: 0 },
+    { onConflict: "challenge_id,user_id" }
   );
   if (error) {
     showToast(error.message);
     return;
   }
+  selectedChallengeEnrolled = true;
+  enrolledChallengeIds.add(selectedChallenge.id);
+  renderChallengeSelector();
+  renderChallengeDetails();
   showToast("You joined the race");
   if (loadedRoute) await addRunnerMarkers(loadedRoute);
 });
@@ -320,9 +423,9 @@ document.getElementById("activityFile").addEventListener("change", async (event)
   const uploadMessage = document.getElementById("uploadMessage");
   event.target.value = "";
   if (!file) return;
-  if (!currentUser || !authClient) {
-    uploadMessage.textContent = "Sign in with a Supabase account before uploading a run.";
-    showToast("Sign in to upload a run");
+  if (!currentUser || !authClient || !selectedChallengeEnrolled) {
+    uploadMessage.textContent = "Join the selected challenge before uploading a run.";
+    showToast("Join this challenge to upload a run");
     return;
   }
   uploadMessage.textContent = "Reading your activity...";
@@ -341,7 +444,8 @@ document.getElementById("activityFile").addEventListener("change", async (event)
       p_file_name: file.name,
       p_file_type: extension,
       p_distance_km: Number(activity.distanceKm.toFixed(2)),
-      p_started_at: activity.startedAt.toISOString()
+      p_started_at: activity.startedAt.toISOString(),
+      p_challenge_id: selectedChallenge?.id
     });
 
     if (error) throw error;
@@ -361,9 +465,9 @@ document.getElementById("manualRunForm").addEventListener("submit", async (event
   const distanceKm = Number(document.getElementById("manualDistance").value);
   const dateValue = document.getElementById("manualDate").value;
   const startedAt = dateValue ? new Date(`${dateValue}T00:00:00+10:00`) : null;
-  if (!currentUser || !authClient) {
-    message.textContent = "Sign in with a Supabase account before adding a run.";
-    showToast("Sign in to add a run");
+  if (!currentUser || !authClient || !selectedChallengeEnrolled) {
+    message.textContent = "Join the selected challenge before adding a run.";
+    showToast("Join this challenge to add a run");
     return;
   }
   if (!Number.isFinite(distanceKm) || distanceKm <= 0 || distanceKm > 1000 || Number((distanceKm * 100).toFixed(5)) % 1 !== 0) {
@@ -382,7 +486,8 @@ document.getElementById("manualRunForm").addEventListener("submit", async (event
       p_file_name: "Manual entry",
       p_file_type: "manual",
       p_distance_km: Number(distanceKm.toFixed(2)),
-      p_started_at: startedAt.toISOString()
+      p_started_at: startedAt.toISOString(),
+      p_challenge_id: selectedChallenge?.id
     });
     if (error) throw error;
     message.textContent = `${distanceKm.toFixed(2)} km added`;
@@ -464,6 +569,9 @@ document.getElementById("profileButton").addEventListener("click", async () => {
       locationMarker = null;
     }
     updateUserUi(null);
+    enrolledChallengeIds = new Set();
+    selectedChallengeEnrolled = false;
+    renderChallengeDetails();
     if (loadedRoute) await addRunnerMarkers(loadedRoute);
     showToast("You have been signed out");
     return;
@@ -504,6 +612,8 @@ authForm.addEventListener("submit", async (event) => {
       } else {
         currentUser = result.data.user;
         updateUserUi(currentUser);
+        await refreshChallengeEnrollment();
+        renderChallengeDetails();
         if (loadedRoute) await addRunnerMarkers(loadedRoute);
         authModal.hidden = true;
         showToast(`Welcome${name ? `, ${name}` : ""}!`);
@@ -513,6 +623,7 @@ authForm.addEventListener("submit", async (event) => {
       if (authMode === "signup") localStorage.setItem("mirbooDemoName", demoName);
       currentUser = { user_metadata: { display_name: demoName }, email };
       updateUserUi(currentUser);
+      renderChallengeDetails();
       authModal.hidden = true;
       showToast("Demo account active — add Supabase credentials to enable real accounts");
     }
@@ -523,19 +634,27 @@ authForm.addEventListener("submit", async (event) => {
   }
 });
 
-if (authClient) {
-  authClient.auth.getSession().then(({ data }) => {
-    currentUser = data.session?.user || null;
-    updateUserUi(currentUser);
-    if (currentUser && loadedRoute) addRunnerMarkers(loadedRoute);
-  });
+async function initializeChallenges() {
+  try {
+    if (authClient) {
+      const { data } = await authClient.auth.getSession();
+      currentUser = data.session?.user || null;
+      updateUserUi(currentUser);
+    }
+    await loadChallenges();
+  } catch (error) {
+    console.error(error);
+    showToast("Could not load challenges");
+  }
 }
+
+initializeChallenges();
 
 function updateUserUi(user) {
   const name = user?.user_metadata?.display_name || user?.email?.split("@")[0] || null;
   const profileButton = document.getElementById("profileButton");
   profileButton.firstChild.textContent = `${name || "Sign in"} `;
   document.getElementById("userAvatar").textContent = name ? name.slice(0, 2).toUpperCase() : "";
-  document.getElementById("activityEntryGrid").hidden = !user;
+  document.getElementById("activityEntryGrid").hidden = !(user && selectedChallengeEnrolled);
   if (name) localStorage.setItem("mirbooRunnerName", name);
 }

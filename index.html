@@ -27,7 +27,7 @@
 
         <div class="sidebar-card">
           <p class="eyebrow">CURRENT EVENT</p>
-          <h3>Race around<br />Australia</h3>
+          <h3 id="sidebarChallengeName">Race around<br />Australia</h3>
           <div class="event-progress"><span></span></div>
           <div class="event-meta"><span id="eventDistance">0 km complete</span><strong id="eventPercent">0%</strong></div>
           <p class="muted">The collective distance of each runner, mapped onto one iconic route.</p>
@@ -44,7 +44,7 @@
         <header class="topbar">
           <div>
             <p class="eyebrow">MIRBOO NORTH RUN CHALLENGE · 2026</p>
-            <h1>Race around Australia <span>✦</span></h1>
+            <h1 id="heroChallengeName">Race around Australia <span>✦</span></h1>
           </div>
           <div class="top-actions">
             <button class="icon-button" aria-label="Notifications">♢<b></b></button>
@@ -70,6 +70,9 @@
         <section class="map-section">
           <div class="section-heading">
             <div><p class="eyebrow">THE ROUTE</p><h2>Follow the journey</h2></div>
+            <label class="map-select">Challenge
+              <select id="challengeSelect" aria-label="Select challenge"></select>
+            </label>
             <label class="map-select">Map style
               <select id="mapProvider" aria-label="Select map style">
                 <option value="osm">OpenStreetMap</option>
@@ -78,6 +81,10 @@
                 <option value="google">Google Maps link</option>
               </select>
             </label>
+          </div>
+          <div class="challenge-details">
+            <div><p class="eyebrow">SELECTED CHALLENGE</p><h3 id="challengeName">Loading challenges...</h3><p id="challengeMeta">Loading challenge details...</p></div>
+            <button class="secondary-button" id="challengeJoinButton" type="button">Join challenge</button>
           </div>
           <div class="map-actions" aria-label="Map views">
             <button class="map-action" id="locateButton">⌖ <span>Zoom to your current location</span></button>
