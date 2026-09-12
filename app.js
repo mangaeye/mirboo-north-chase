@@ -262,13 +262,15 @@ function renderRunnerData(runners) {
   document.getElementById("eventPercent").textContent = `${Math.min(100, Math.round(totalDistance / Math.max(routeDistanceKm, 1) * 100))}%`;
   document.querySelector(".event-progress span").style.width = `${Math.min(100, totalDistance / Math.max(routeDistanceKm, 1) * 100)}%`;
   const rows = document.getElementById("leaderboardRows");
-  rows.innerHTML = runners.length ? runners.slice(0, 5).map((runner, index) => `
-    <div class="leader-row">
-      <span class="rank ${index === 0 ? "first" : ""}">${String(index + 1).padStart(2, "0")}</span>
-      <span class="mini-avatar" style="background:${runner.color}">${getInitials(runner.name)}</span>
-      <div class="runner-name"><strong>${escapeHtml(formatRunnerName(runner.name))}</strong><small>${runner.distanceKm} km along route</small></div>
-      <strong class="distance">${runner.distanceKm} <small>km</small></strong>
-    </div>`).join("") : '<p class="empty-state">No runners have joined yet.</p>';
+  if (rows) {
+    rows.innerHTML = runners.length ? runners.slice(0, 5).map((runner, index) => `
+      <div class="leader-row">
+        <span class="rank ${index === 0 ? "first" : ""}">${String(index + 1).padStart(2, "0")}</span>
+        <span class="mini-avatar" style="background:${runner.color}">${getInitials(runner.name)}</span>
+        <div class="runner-name"><strong>${escapeHtml(formatRunnerName(runner.name))}</strong><small>${runner.distanceKm} km along route</small></div>
+        <strong class="distance">${runner.distanceKm} <small>km</small></strong>
+      </div>`).join("") : '<p class="empty-state">No runners have joined yet.</p>';
+  }
   updatePersonalProgress(runners);
 }
 
