@@ -11,6 +11,13 @@ const providers = {
   }
 };
 const activityStartCutoff = new Date("2026-09-09T00:00:00+10:00");
+const avatarColors = ["#f76b45", "#6e59d9", "#3a9d78", "#d49a32", "#2f8f9d", "#bd5b8f", "#6f8f3d", "#b86b35"];
+
+function getUserColor(identifier) {
+  let hash = 0;
+  for (const character of String(identifier || "user")) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  return avatarColors[hash % avatarColors.length];
+}
 
 let loadedRoute = null;
 let routeDistanceKm = 0;
@@ -150,7 +157,7 @@ document.getElementById("locateButton").addEventListener("click", () => {
     radius: 9,
     color: "#fff",
     weight: 3,
-    fillColor: "#f76b45",
+    fillColor: getUserColor(currentUser.id || currentUser.email),
     fillOpacity: 1
   }).addTo(map).bindTooltip(`${currentUser.user_metadata?.display_name || "Your"} · current race position`).openTooltip();
 });
@@ -167,11 +174,11 @@ async function loadRealRunners() {
   if (profilesResult.error) throw profilesResult.error;
   if (entriesResult.error) throw entriesResult.error;
   const distances = new Map(entriesResult.data.map((entry) => [entry.user_id, Number(entry.distance_km) || 0]));
-  const runners = profilesResult.data.filter((profile) => distances.has(profile.id)).map((profile, index) => ({
+  const runners = profilesResult.data.filter((profile) => distances.has(profile.id)).map((profile) => ({
     id: profile.id,
     name: profile.display_name,
     distanceKm: distances.get(profile.id) || 0,
-    color: ["#f76b45", "#6e59d9", "#3a9d78", "#d49a32"][index % 4]
+    color: getUserColor(profile.id)
   })).sort((a, b) => b.distanceKm - a.distanceKm);
   renderRunnerData(runners);
   await updateEstimatedArrival(runners);
@@ -187,7 +194,7 @@ async function loadRecentRuns() {
   }
   const { data, error } = await authClient
     .from("activities")
-    .select("distance_km, started_at, file_type, profiles(display_name)")
+    .select("distance_km, started_at, file_type, profiles(id, display_name)")
     .eq("challenge_id", selectedChallenge.id)
     .order("started_at", { ascending: false })
     .limit(10);
@@ -195,9 +202,10 @@ async function loadRecentRuns() {
     list.innerHTML = '<p class="empty-state">Run the activity migration to enable the latest-runs log.</p>';
     return;
   }
-  list.innerHTML = data.length ? data.map((activity, index) => {
+  list.innerHTML = data.length ? data.map((activity) => {
     const name = formatRunnerName(activity.profiles?.display_name || "Runner");
     const initials = getInitials(name);
+    const color = getUserColor(activity.profiles?.id || name);
     const date = new Date(activity.started_at).toLocaleDateString(undefined, {
       day: "numeric",
       month: "short",
@@ -205,7 +213,7 @@ async function loadRecentRuns() {
     });
     const source = activity.file_type === "manual" ? "Manual entry" : activity.file_type.toUpperCase();
     return `<div class="recent-run">
-      <span class="recent-run-avatar" style="background:${["#f76b45", "#6e59d9", "#3a9d78", "#d49a32"][index % 4]}">${initials}</span>
+      <span class="recent-run-avatar" style="background:${color}">${initials}</span>
       <div class="recent-run-details"><strong>${escapeHtml(name)}</strong><small>${date} · ${source}</small></div>
       <strong class="recent-run-distance">${Number(activity.distance_km).toFixed(2)} <small>km</small></strong>
     </div>`;
@@ -706,7 +714,9 @@ function updateUserUi(user) {
   const name = user?.user_metadata?.display_name || user?.email?.split("@")[0] || null;
   const profileButton = document.getElementById("profileButton");
   profileButton.firstChild.textContent = `${name || "Sign in"} `;
-  document.getElementById("userAvatar").textContent = name ? getInitials(name) : "";
+  const userAvatar = document.getElementById("userAvatar");
+  userAvatar.textContent = name ? getInitials(name) : "";
+  userAvatar.style.background = name ? getUserColor(user.id || name) : "";
   document.getElementById("activityEntryGrid").hidden = !(user && selectedChallengeEnrolled);
   if (name) localStorage.setItem("mirbooRunnerName", name);
 }
