@@ -179,6 +179,7 @@ async function loadRealRunners() {
     color: ["#f76b45", "#6e59d9", "#3a9d78", "#d49a32"][index % 4]
   })).sort((a, b) => b.distanceKm - a.distanceKm);
   renderRunnerData(runners);
+  await updateEstimatedArrival(runners);
   await loadRecentRuns();
   return runners;
 }
@@ -233,6 +234,44 @@ function renderRunnerData(runners) {
       <strong class="distance">${runner.distanceKm} <small>km</small></strong>
     </div>`).join("") : '<p class="empty-state">No runners have joined yet.</p>';
   updatePersonalProgress(runners);
+}
+
+async function updateEstimatedArrival(runners) {
+  const output = document.getElementById("estimatedArrival");
+  if (!currentUser || !selectedChallenge || !authClient) {
+    output.textContent = "--";
+    return;
+  }
+  const runner = runners.find((entry) => entry.id === currentUser.id);
+  if (!runner || runner.distanceKm >= routeDistanceKm) {
+    output.textContent = runner ? "Arrived" : "--";
+    return;
+  }
+  const { data, error } = await authClient
+    .from("activities")
+    .select("distance_km, started_at")
+    .eq("challenge_id", selectedChallenge.id)
+    .eq("user_id", currentUser.id)
+    .order("started_at", { ascending: true });
+  if (error) throw error;
+  if (!data?.length) {
+    output.textContent = "--";
+    return;
+  }
+  const firstRun = new Date(data[0].started_at);
+  const elapsedDays = Math.max(1, Math.ceil((Date.now() - firstRun.getTime()) / 86400000) + 1);
+  const averageDailyKm = runner.distanceKm / elapsedDays;
+  if (!Number.isFinite(averageDailyKm) || averageDailyKm <= 0) {
+    output.textContent = "--";
+    return;
+  }
+  const remainingDays = Math.ceil((routeDistanceKm - runner.distanceKm) / averageDailyKm);
+  const arrivalDate = new Date(Date.now() + remainingDays * 86400000);
+  output.textContent = arrivalDate.toLocaleDateString("en-AU", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
 }
 
 function updatePersonalProgress(runners) {
