@@ -559,25 +559,39 @@ const authClient = window.SUPABASE_CONFIG?.url && window.SUPABASE_CONFIG?.anonKe
   ? window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey)
   : null;
 
-document.getElementById("profileButton").addEventListener("click", async () => {
-  if (currentUser) {
-    if (authClient) await authClient.auth.signOut();
-    currentUser = null;
-    currentRunnerPosition = null;
-    if (locationMarker) {
-      map.removeLayer(locationMarker);
-      locationMarker = null;
-    }
-    updateUserUi(null);
-    enrolledChallengeIds = new Set();
-    selectedChallengeEnrolled = false;
-    renderChallengeDetails();
-    if (loadedRoute) await addRunnerMarkers(loadedRoute);
-    showToast("You have been signed out");
+const profileButton = document.getElementById("profileButton");
+const profileDropdown = document.getElementById("profileDropdown");
+profileButton.addEventListener("click", () => {
+  if (!currentUser) {
+    authModal.hidden = false;
+    authName.focus();
     return;
   }
-  authModal.hidden = false;
-  authName.focus();
+  profileDropdown.hidden = !profileDropdown.hidden;
+  profileButton.setAttribute("aria-expanded", String(!profileDropdown.hidden));
+});
+document.getElementById("signOutButton").addEventListener("click", async () => {
+  if (authClient) await authClient.auth.signOut();
+  currentUser = null;
+  currentRunnerPosition = null;
+  profileDropdown.hidden = true;
+  profileButton.setAttribute("aria-expanded", "false");
+  if (locationMarker) {
+    map.removeLayer(locationMarker);
+    locationMarker = null;
+  }
+  updateUserUi(null);
+  enrolledChallengeIds = new Set();
+  selectedChallengeEnrolled = false;
+  renderChallengeDetails();
+  if (loadedRoute) await addRunnerMarkers(loadedRoute);
+  showToast("You have been signed out");
+});
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".profile-menu")) {
+    profileDropdown.hidden = true;
+    profileButton.setAttribute("aria-expanded", "false");
+  }
 });
 document.querySelectorAll("[data-auth-mode]").forEach((button) => button.addEventListener("click", () => {
   authMode = button.dataset.authMode;

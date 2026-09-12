@@ -49,7 +49,12 @@
           <div class="top-actions">
             <button class="icon-button" aria-label="Notifications">♢<b></b></button>
             <div class="avatar" id="userAvatar"></div>
-            <button class="profile-name" id="profileButton">Sign in <span>⌄</span></button>
+            <div class="profile-menu">
+              <button class="profile-name" id="profileButton" aria-haspopup="true" aria-expanded="false">Sign in <span>⌄</span></button>
+              <div class="profile-dropdown" id="profileDropdown" hidden>
+                <button type="button" id="signOutButton">Sign out</button>
+              </div>
+            </div>
           </div>
         </header>
 
