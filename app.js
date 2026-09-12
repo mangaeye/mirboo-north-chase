@@ -321,7 +321,7 @@ function updatePersonalProgress(runners) {
   const currentRunner = runners.find((runner) => runner.name === currentName);
   const distance = currentRunner?.distanceKm || 0;
   document.getElementById("progressTitle").textContent = currentName
-    ? `${currentName}, keep going!`
+    ? "Your progress"
     : "Sign in to track your progress";
   document.getElementById("personalDistance").textContent = distance;
   document.getElementById("personalProgressBar").style.width = `${Math.min(100, distance / Math.max(routeDistanceKm, 1) * 100)}%`;
