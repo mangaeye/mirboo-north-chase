@@ -87,20 +87,11 @@ set search_path = public
 as $$
 declare
   new_activity public.activities;
+  enrolled_challenge record;
+  enrolled_count integer := 0;
 begin
   if auth.uid() is null then
     raise exception 'You must be signed in to upload an activity';
-  end if;
-  if not exists (
-    select 1 from public.challenges where id = p_challenge_id
-  ) then
-    raise exception 'The selected challenge does not exist';
-  end if;
-  if not exists (
-    select 1 from public.challenge_entries
-    where challenge_id = p_challenge_id and user_id = auth.uid()
-  ) then
-    raise exception 'Join the selected challenge before adding a run';
   end if;
   if p_distance_km <= 0 or p_distance_km > 1000 then
     raise exception 'Activity distance must be between 0 and 1000 km';
@@ -112,13 +103,32 @@ begin
     raise exception 'Only GPX, FIT and manual runs are supported';
   end if;
 
-  insert into public.activities (user_id, challenge_id, file_name, file_type, distance_km, started_at)
-  values (auth.uid(), p_challenge_id, left(p_file_name, 255), p_file_type, round(p_distance_km, 2), p_started_at)
-  returning * into new_activity;
+  for enrolled_challenge in
+    select challenge_id
+    from public.challenge_entries
+    where user_id = auth.uid()
+  loop
+    insert into public.activities (user_id, challenge_id, file_name, file_type, distance_km, started_at)
+    values (
+      auth.uid(),
+      enrolled_challenge.challenge_id,
+      left(p_file_name, 255),
+      p_file_type,
+      round(p_distance_km, 2),
+      p_started_at
+    )
+    returning * into new_activity;
 
-  update public.challenge_entries
-  set distance_km = distance_km + new_activity.distance_km
-  where challenge_id = p_challenge_id and user_id = auth.uid();
+    update public.challenge_entries
+    set distance_km = distance_km + new_activity.distance_km
+    where challenge_id = enrolled_challenge.challenge_id and user_id = auth.uid();
+
+    enrolled_count := enrolled_count + 1;
+  end loop;
+
+  if enrolled_count = 0 then
+    raise exception 'Join at least one challenge before adding a run';
+  end if;
 
   return new_activity;
 end;
