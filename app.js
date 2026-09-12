@@ -4,11 +4,6 @@ const providers = {
     attribution: "© OpenStreetMap contributors",
     note: "OpenStreetMap · © OpenStreetMap contributors"
   },
-  carto: {
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    attribution: "© OpenStreetMap © CARTO",
-    note: "Carto Voyager · © OpenStreetMap © CARTO"
-  },
   satellite: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "Tiles © Esri",
@@ -405,12 +400,6 @@ const mapSelect = document.getElementById("mapProvider");
 const mapNote = document.getElementById("mapNote");
 mapSelect.addEventListener("change", (event) => {
   const provider = event.target.value;
-  if (provider === "google") {
-    window.open("https://www.google.com/maps/@-25.2744,133.7751,4z", "_blank", "noopener");
-    event.target.value = "osm";
-    showToast("Google Maps opened in a new tab");
-    return;
-  }
   map.removeLayer(activeLayer);
   activeLayer = L.tileLayer(providers[provider].url, { attribution: providers[provider].attribution, maxZoom: 18 }).addTo(map);
   activeLayer.bringToBack();
