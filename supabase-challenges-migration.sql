@@ -45,7 +45,7 @@ alter table public.activities
 insert into public.challenges (name, route_file, start_date, start_location, finish_location)
 values (
   'Race around Australia',
-  'route3.kml',
+  'route.kml',
   '2026-09-09',
   'Mirboo North',
   'South Point'

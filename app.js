@@ -369,7 +369,7 @@ async function loadChallenges() {
   const fallbackChallenge = {
     id: "local-default",
     name: "Race around Australia",
-    route_file: "route3.kml",
+    route_file: "route.kml",
     start_date: "2026-09-09",
     start_location: "Mirboo North",
     finish_location: "South Point"
