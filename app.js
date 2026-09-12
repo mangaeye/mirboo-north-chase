@@ -445,7 +445,7 @@ document.getElementById("joinButton").addEventListener("click", async () => {
   showToast("You joined the race");
   if (loadedRoute) await addRunnerMarkers(loadedRoute);
 });
-document.getElementById("connectButton").addEventListener("click", () => { connectModal.hidden = false; });
+// The connected-watch sidebar section is currently commented out in index.html.
 document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => { document.getElementById(button.dataset.close).hidden = true; }));
 document.querySelectorAll(".modal-backdrop").forEach((backdrop) => backdrop.addEventListener("click", (event) => { if (event.target === backdrop) backdrop.hidden = true; }));
 document.getElementById("joinForm").addEventListener("submit", (event) => {
