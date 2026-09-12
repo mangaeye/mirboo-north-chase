@@ -24,11 +24,44 @@ let routeDistanceKm = 0;
 let challenges = [];
 let selectedChallenge = null;
 let enrolledChallengeIds = new Set();
-// Add each town/city in route order with its distance from the route start.
-// These distances are derived from the current KML route and can be expanded
-// when the course includes more towns.
+// Towns and cities in route order, with approximate distances from the start.
 const routeLandmarks = [
-  { name: "Morwell", distanceKm: 16.84 }
+  { name: "Morwell", distanceKm: 16.84 },
+  { name: "Driffield", distanceKm: 25.1 },
+  { name: "Traralgon East", distanceKm: 50.9 },
+  { name: "Cowwarr", distanceKm: 75.1 },
+  { name: "Maffra", distanceKm: 100 },
+  { name: "Nicholson", distanceKm: 175.2 },
+  { name: "Orbost", distanceKm: 250.8 },
+  { name: "Cabbage Tree Creek", distanceKm: 275.3 },
+  { name: "Cann River", distanceKm: 325 },
+  { name: "Genoa", distanceKm: 375.1 },
+  { name: "Timbillica", distanceKm: 400 },
+  { name: "Boydtown", distanceKm: 425.6 },
+  { name: "South Pambula", distanceKm: 450 },
+  { name: "Wyndham", distanceKm: 475.3 },
+  { name: "Coolangubra", distanceKm: 500.1 },
+  { name: "Ando", distanceKm: 525.1 },
+  { name: "Boco", distanceKm: 550.2 },
+  { name: "Dalgety", distanceKm: 575 },
+  { name: "Jindabyne", distanceKm: 600 },
+  { name: "Penderlea", distanceKm: 625 },
+  { name: "Jacobs River", distanceKm: 650.1 },
+  { name: "Kosciuszko", distanceKm: 675.1 },
+  { name: "Khancoban", distanceKm: 700.1 },
+  { name: "Bringenbrong", distanceKm: 725 },
+  { name: "Tallangatta", distanceKm: 825.1 },
+  { name: "Springhurst", distanceKm: 900.7 },
+  { name: "Wangaratta", distanceKm: 925 },
+  { name: "Baddaginnie", distanceKm: 978.6 },
+  { name: "Violet Town", distanceKm: 1000 },
+  { name: "Euroa", distanceKm: 1026.6 },
+  { name: "Avenel", distanceKm: 1053.5 },
+  { name: "Seymour", distanceKm: 1075 },
+  { name: "Wallan", distanceKm: 1125.2 },
+  { name: "Melbourne", distanceKm: 1150 },
+  { name: "Koo Wee Rup", distanceKm: 1251.2 },
+  { name: "Nyora", distanceKm: 1275.1 }
 ];
 const runnerLayer = L.layerGroup();
 let runnerPositions = [];
