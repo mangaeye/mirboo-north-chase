@@ -238,13 +238,16 @@ function renderRunnerData(runners) {
 
 async function updateEstimatedArrival(runners) {
   const output = document.getElementById("estimatedArrival");
+  const daysOutput = document.getElementById("daysRemaining");
   if (!currentUser || !selectedChallenge || !authClient) {
     output.textContent = "--";
+    daysOutput.textContent = "--";
     return;
   }
   const runner = runners.find((entry) => entry.id === currentUser.id);
   if (!runner || runner.distanceKm >= routeDistanceKm) {
     output.textContent = runner ? "Arrived" : "--";
+    daysOutput.textContent = runner ? "0" : "--";
     return;
   }
   const { data, error } = await authClient
@@ -256,6 +259,7 @@ async function updateEstimatedArrival(runners) {
   if (error) throw error;
   if (!data?.length) {
     output.textContent = "--";
+    daysOutput.textContent = "--";
     return;
   }
   const firstRun = new Date(data[0].started_at);
@@ -263,10 +267,12 @@ async function updateEstimatedArrival(runners) {
   const averageDailyKm = runner.distanceKm / elapsedDays;
   if (!Number.isFinite(averageDailyKm) || averageDailyKm <= 0) {
     output.textContent = "--";
+    daysOutput.textContent = "--";
     return;
   }
   const remainingDays = Math.ceil((routeDistanceKm - runner.distanceKm) / averageDailyKm);
   const arrivalDate = new Date(Date.now() + remainingDays * 86400000);
+  daysOutput.textContent = String(remainingDays);
   output.textContent = arrivalDate.toLocaleDateString("en-AU", {
     day: "2-digit",
     month: "short",
