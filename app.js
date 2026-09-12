@@ -101,7 +101,7 @@ async function addRunnerMarkers(route) {
     runnerRouteDistances.push(distanceAlongRoute);
     if (currentUser && runner.id === currentUser.id) currentRunnerPosition = position;
     const displayName = formatRunnerName(runner.name);
-    const initials = displayName.slice(0, 2).toUpperCase();
+    const initials = getInitials(displayName);
     const icon = L.divIcon({
       className: "runner-marker",
       html: `<span style="background:${runner.color}">${initials}</span>`,
@@ -201,7 +201,7 @@ async function loadRecentRuns() {
   }
   list.innerHTML = data.length ? data.map((activity, index) => {
     const name = formatRunnerName(activity.profiles?.display_name || "Runner");
-    const initials = name.slice(0, 2).toUpperCase();
+    const initials = getInitials(name);
     const date = new Date(activity.started_at).toLocaleDateString(undefined, {
       day: "numeric",
       month: "short",
@@ -228,7 +228,7 @@ function renderRunnerData(runners) {
   rows.innerHTML = runners.length ? runners.slice(0, 5).map((runner, index) => `
     <div class="leader-row">
       <span class="rank ${index === 0 ? "first" : ""}">${String(index + 1).padStart(2, "0")}</span>
-      <span class="mini-avatar" style="background:${runner.color}">${runner.name.slice(0, 2).toUpperCase()}</span>
+      <span class="mini-avatar" style="background:${runner.color}">${getInitials(runner.name)}</span>
       <div class="runner-name"><strong>${escapeHtml(formatRunnerName(runner.name))}</strong><small>${runner.distanceKm} km along route</small></div>
       <strong class="distance">${runner.distanceKm} <small>km</small></strong>
     </div>`).join("") : '<p class="empty-state">No runners have joined yet.</p>';
@@ -250,6 +250,10 @@ function updatePersonalProgress(runners) {
 function formatRunnerName(name) {
   if (currentUser) return name;
   return name.trim().split(/\s+/)[0] || "Runner";
+}
+
+function getInitials(name) {
+  return name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
 
 function getNextTown(distanceKm, isSignedIn) {
@@ -668,7 +672,7 @@ function updateUserUi(user) {
   const name = user?.user_metadata?.display_name || user?.email?.split("@")[0] || null;
   const profileButton = document.getElementById("profileButton");
   profileButton.firstChild.textContent = `${name || "Sign in"} `;
-  document.getElementById("userAvatar").textContent = name ? name.slice(0, 2).toUpperCase() : "";
+  document.getElementById("userAvatar").textContent = name ? getInitials(name) : "";
   document.getElementById("activityEntryGrid").hidden = !(user && selectedChallengeEnrolled);
   if (name) localStorage.setItem("mirbooRunnerName", name);
 }
